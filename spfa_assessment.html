@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pro-Leverage™ SPFA</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px;
+    background: #f5f6fa;
+  }
+  #timerBar {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 8px 16px;
+    background: #111827;
+    color: #fff;
+    z-index: 999;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #timerBar span { font-weight: bold; }
+  .content { margin-top: 56px; }
+
+  #progressContainer {
+    margin-top: 8px;
+    width: 100%;
+    background: #e5e7eb;
+    border-radius: 999px;
+    overflow: hidden;
+    height: 8px;
+  }
+  #progressBar {
+    height: 8px;
+    width: 0%;
+    background: linear-gradient(90deg, #2563eb, #10b981);
+    transition: width 0.3s ease;
+  }
+
+  /* Consent overlay */
+  .consent-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.8);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .consent-box {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  .consent-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #0a1628; }
+  .consent-text { line-height: 1.6; margin-bottom: 20px; }
+  .consent-radio { margin-right: 10px; }
+  .consent-btn { padding: 12px 24px; margin: 10px 5px 0 0; border: none; border-radius: 6px; cursor: pointer; }
+  .btn-agree { background: #28a745; color: white; }
+  .btn-agree:hover { background: #218838; }
+  .btn-agree:disabled { background: #9ca3af; cursor: not-allowed; }
+  .btn-disagree { background: #dc3545; color: white; }
+  .btn-disagree:hover { background: #c82333; }
+
+  .question-block {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  }
+  .question-text {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #111827;
+  }
+
+  .likert-scale {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .likert-option { position: relative; display: inline-block; }
+  .likert-option input[type="radio"] { display: none; }
+  .likert-option label {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    font-size: 12px;
+    cursor: pointer;
+    background: #f9fafb;
+    color: #374151;
+    transition: all 0.15s ease;
+  }
+  .likert-option input[type="radio"]:checked + label {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 1px rgba(37,99,235,0.4);
+  }
+
+  .ranking-note {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 6px;
+  }
+  select {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    font-size: 13px;
+  }
+
+  .error { color: #b91c1c; font-weight: bold; margin-top: 8px; }
+
+  h1 { margin-bottom: 4px; }
+  h2 { margin-top: 12px; }
+
+  button {
+    padding: 8px 16px;
+    margin-top: 16px;
+    margin-right: 8px;
+    border: none;
+    border-radius: 999px;
+    font-size: 14px;
+    cursor: pointer;
+    background: #2563eb;
+    color: #ffffff;
+    transition: background 0.15s ease;
+  }
+  button:hover { background: #1d4ed8; }
+  #prevBtn { background: #6b7280; }
+  #prevBtn:hover { background: #4b5563; }
+  #navButtons { margin-top: 12px; }
+
+  /* Processing overlay */
+  #processingOverlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 22, 40, 0.88);
+    z-index: 9998;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+  }
+  #processingOverlay.active { display: flex; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top-color: #00bcd4;
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+    margin-bottom: 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #processingOverlay p {
+    color: #a0b8d8;
+    font-size: 15px;
+    max-width: 320px;
+    line-height: 1.6;
+  }
+  #processingOverlay strong { color: #fff; }
+
+  /* Thank-you screen */
+  #thankYouScreen {
+    display: none;
+    min-height: 70vh;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 40px 20px;
+  }
+  #thankYouScreen.active { display: flex; }
+  .ty-icon { font-size: 64px; margin-bottom: 20px; }
+  .ty-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #0d1b4b;
+    margin-bottom: 12px;
+  }
+  .ty-name { color: #00bcd4; }
+  .ty-body {
+    font-size: 16px;
+    color: #5a6a8a;
+    max-width: 460px;
+    line-height: 1.7;
+    margin-bottom: 24px;
+  }
+  .ty-ref {
+    font-size: 12px;
+    color: #9ca3af;
+    font-family: monospace;
+    background: #f0f4ff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+  }
+  .ty-footer {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 32px;
+  }
+</style>
+</head>
+<body>
+
+<!-- TIMER BAR -->
+<div id="timerBar">
+  <span>Pro-Leverage™ SPFA</span>
+  <span id="timerText">00:00</span>
+</div>
+
+<!-- CONSENT OVERLAY -->
+<div class="consent-overlay" id="consentOverlay" style="display:none;">
+  <div class="consent-box">
+    <div class="consent-title">⚠ Before You Begin</div>
+    <div class="consent-text">
+      <strong>About this assessment:</strong> This is the Pro-Leverage Sales Personality &amp; Fit Architecture (SPFA) — a 56-question psychometric assessment that measures your sales behavioural tendencies and role orientation. It takes approximately 15 to 25 minutes to complete.
+    </div>
+    <div class="consent-text">
+      <strong>There are no right or wrong answers.</strong> Answer each question honestly based on your actual tendencies, not how you think you "should" answer. The assessment detects inconsistency patterns.
+    </div>
+    <div class="consent-text">
+      <strong>Data and privacy:</strong> By continuing, you consent to the collection and processing of your responses for recruitment and evaluation purposes, including secure storage and analysis. Your responses will be shared with the organisation that sent you this link.
+    </div>
+    <div class="consent-text">
+      <strong>Voluntary participation:</strong> You may withdraw at any point before submission. Doing so may affect your consideration for the role.
+    </div>
+    <label style="display:block; margin:20px 0; font-weight:bold;">
+      <input type="radio" name="consent" value="agree" class="consent-radio" required id="consentRadio">
+      <span style="margin-left:10px;">I have read and agree to the above terms</span>
+    </label>
+    <button onclick="handleConsent(true)" class="consent-btn btn-agree" disabled id="agreeBtn">Proceed to Assessment</button>
+    <button onclick="handleConsent(false)" class="consent-btn btn-disagree">Decline</button>
+  </div>
+</div>
+
+<!-- PROCESSING OVERLAY -->
+<div id="processingOverlay">
+  <div class="spinner"></div>
+  <p><strong>Analysing your responses...</strong><br>This takes about 20–30 seconds. Please don't close this window.</p>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="content">
+
+  <div id="formSection">
+    <h1>Pro-Leverage™ Sales Personality &amp; Fit Architecture (SPFA)</h1>
+    <p>Answer all questions honestly. There are no right or wrong answers.</p>
+
+    <div style="margin-bottom:16px; margin-top:12px;">
+      <label>Name: <input type="text" id="name" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;font-size:14px;"></label>
+      &nbsp;&nbsp;
+      <label>Email: <input type="email" id="email" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;font-size:14px;"></label>
+    </div>
+
+    <form id="spfaForm">
+      <div id="questionsContainer"></div>
+      <div id="navButtons">
+        <button type="button" id="prevBtn">Back</button>
+        <button type="button" id="nextBtn">Next</button>
+        <button type="button" id="submitBtn">Submit Assessment</button>
+      </div>
+      <div id="error" class="error"></div>
+    </form>
+  </div>
+
+  <!-- THANK YOU SCREEN -->
+  <div id="thankYouScreen">
+    <div class="ty-icon">✅</div>
+    <div class="ty-title">Thank you, <span class="ty-name" id="tyName">there</span>!</div>
+    <div class="ty-body" id="tyBody">
+      Your assessment is complete. The team will be in touch with you shortly.
+    </div>
+    <div class="ty-ref" id="tyCertRef"></div>
+    <div class="ty-footer">
+      Pro-Leverage™ SPFA · Sales Personality &amp; Fit Architecture<br>
+      www.pro-leverage.com
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<script>
+/* ===========================
+   0. URL PARAMS & CONTEXT
+   =========================== */
+const urlParams = new URLSearchParams(window.location.search);
+const SENDER_EMAIL    = urlParams.get('sender') || '';
+const CANDIDATE_NAME  = urlParams.get('name')   || '';
+const CANDIDATE_EMAIL = urlParams.get('email')  || '';
+const COMPANY         = urlParams.get('company')|| '';
+const ROLE            = urlParams.get('role')   || '';
+
+// -------------------------------------------------------
+// UPDATE THIS to your deployed Apps Script Web App URL
+// -------------------------------------------------------
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+
+/* ===========================
+   1. TIMER
+   =========================== */
+let startTime;
+let timerInterval;
+
+function startTimer() {
+  startTime = performance.now();
+  timerInterval = setInterval(() => {
+    const elapsedMs = performance.now() - startTime;
+    const seconds = Math.floor(elapsedMs / 1000);
+    const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    document.getElementById('timerText').textContent = mins + ':' + secs;
+  }, 1000);
+}
+
+/* ===========================
+   2. QUESTION CONFIG
+   =========================== */
+const likertQuestions = [
+  // DRIVE & ACHIEVEMENT (Q1–Q6)
+  { id:'Q1',  text:'I set personal sales targets beyond assigned quotas.',                  trait:'Drive',        reverse:false },
+  { id:'Q2',  text:'I feel dissatisfied if I am not among the top performers.',             trait:'Drive',        reverse:false },
+  { id:'Q3',  text:'I actively seek opportunities to increase revenue impact.',             trait:'Drive',        reverse:false },
+  { id:'Q4',  text:'I maintain outreach intensity even after early rejections.',            trait:'Drive',        reverse:false },
+  { id:'Q5',  text:'Performance-based rewards motivate me more than stability.',            trait:'Drive',        reverse:false },
+  { id:'Q6',  text:'I prefer predictable performance over ambitious targets.',              trait:'Drive',        reverse:true  },
+
+  // COMPETITIVE DOMINANCE (Q7–Q12)
+  { id:'Q7',  text:"I am comfortable challenging a prospect's assumptions.",               trait:'Competitive',  reverse:false },
+  { id:'Q8',  text:'I push discussions toward decisions rather than leaving them open-ended.', trait:'Competitive', reverse:false },
+  { id:'Q9',  text:'I prefer high-reward opportunities over low-risk ones.',               trait:'Competitive',  reverse:false },
+  { id:'Q10', text:'Visible performance rankings energize me.',                            trait:'Competitive',  reverse:false },
+  { id:'Q11', text:'I hesitate to apply pressure if a prospect seems unsure.',             trait:'Competitive',  reverse:true  },
+  { id:'Q12', text:'I avoid competitive environments when possible.',                      trait:'Competitive',  reverse:true  },
+
+  // RESILIENCE & RECOVERY (Q13–Q18)
+  { id:'Q13', text:'I quickly resume activity after losing a deal.',                       trait:'Resilience',   reverse:false },
+  { id:'Q14', text:'Setbacks reduce my selling intensity for several days.',               trait:'Resilience',   reverse:true  },
+  { id:'Q15', text:'I treat objections as part of the process.',                           trait:'Resilience',   reverse:false },
+  { id:'Q16', text:'I maintain prospecting activity during slow months.',                  trait:'Resilience',   reverse:false },
+  { id:'Q17', text:'Repeated rejection makes me question my ability.',                     trait:'Resilience',   reverse:true  },
+  { id:'Q18', text:'I adapt strategy rather than disengage after setbacks.',               trait:'Resilience',   reverse:false },
+
+  // RELATIONSHIP ORIENTATION (Q19–Q24)
+  { id:'Q19', text:'I enjoy building long-term professional rapport.',                     trait:'Relationship', reverse:false },
+  { id:'Q20', text:'I check in with clients even without immediate opportunities.',        trait:'Relationship', reverse:false },
+  { id:'Q21', text:'I prioritize trust-building over quick closure.',                      trait:'Relationship', reverse:false },
+  { id:'Q22', text:'I prefer nurturing accounts over pursuing unknown prospects.',         trait:'Relationship', reverse:false },
+  { id:'Q23', text:'I follow up consistently to maintain relationships.',                  trait:'Relationship', reverse:false },
+  { id:'Q24', text:'Transactional wins are more satisfying than sustained relationships.', trait:'Relationship', reverse:true  },
+
+  // ANALYTICAL STRUCTURE (Q25–Q30)
+  { id:'Q25', text:'I prefer structured sales processes over improvisation.',              trait:'Analytical',   reverse:false },
+  { id:'Q26', text:'I analyze patterns in lost deals.',                                    trait:'Analytical',   reverse:false },
+  { id:'Q27', text:'I document client insights systematically.',                           trait:'Analytical',   reverse:false },
+  { id:'Q28', text:'I delay decisions until I gather sufficient information.',             trait:'Analytical',   reverse:false },
+  { id:'Q29', text:'I move forward quickly even when information is incomplete.',          trait:'Analytical',   reverse:true  },
+  { id:'Q30', text:'I rely more on instinct than analysis in selling.',                    trait:'Analytical',   reverse:true  },
+
+  // COACHABILITY & LEARNING AGILITY (Q31–Q35)
+  { id:'Q31', text:'I actively seek feedback to improve performance.',                     trait:'Coachability', reverse:false },
+  { id:'Q32', text:'I adjust my approach when given constructive guidance.',               trait:'Coachability', reverse:false },
+  { id:'Q33', text:'I resist advice if I believe my method works.',                        trait:'Coachability', reverse:true  },
+  { id:'Q34', text:'I review past interactions to refine technique.',                      trait:'Coachability', reverse:false },
+  { id:'Q35', text:'I experiment with new strategies suggested by leadership.',            trait:'Coachability', reverse:false },
+
+  // CONSCIENTIOUS EXECUTION (Q36–Q40)
+  { id:'Q36', text:'I schedule follow-ups immediately after meetings.',                    trait:'Conscientious', reverse:false },
+  { id:'Q37', text:'I track activity metrics consistently.',                               trait:'Conscientious', reverse:false },
+  { id:'Q38', text:'Administrative tasks are sometimes delayed.',                          trait:'Conscientious', reverse:true  },
+  { id:'Q39', text:'I rarely miss professional commitments.',                              trait:'Conscientious', reverse:false },
+  { id:'Q40', text:'I prefer steady consistency over occasional bursts of intensity.',     trait:'Conscientious', reverse:false }
+];
+
+const traitMax = {
+  Drive: 30, Competitive: 30, Resilience: 30, Relationship: 30,
+  Analytical: 30, Coachability: 25, Conscientious: 25
+};
+
+const forcedBlocks = [
+  {
+    blockId: 1,
+    items: [
+      { id:'Q41', text:'I enjoy aggressively pursuing new prospects.',          bucket:'Hunter'   },
+      { id:'Q42', text:'I prefer nurturing long-term client relationships.',    bucket:'Farmer'   },
+      { id:'Q43', text:'I focus deeply on technical understanding.',            bucket:'Analyzer' },
+      { id:'Q44', text:'I ensure internal coordination runs smoothly.',         bucket:'Support'  }
+    ]
+  },
+  {
+    blockId: 2,
+    items: [
+      { id:'Q45', text:'I push for decisions quickly.',                         bucket:'Hunter'   },
+      { id:'Q46', text:'I build trust before pushing outcomes.',                bucket:'Farmer'   },
+      { id:'Q47', text:'I validate data before moving forward.',                bucket:'Analyzer' },
+      { id:'Q48', text:'I ensure commitments are operationally fulfilled.',     bucket:'Support'  }
+    ]
+  },
+  {
+    blockId: 3,
+    items: [
+      { id:'Q49', text:'I thrive in competitive revenue environments.',         bucket:'Hunter'   },
+      { id:'Q50', text:'I maintain stable client satisfaction.',                bucket:'Farmer'   },
+      { id:'Q51', text:'I optimize processes and systems.',                     bucket:'Analyzer' },
+      { id:'Q52', text:'I ensure compliance and detail accuracy.',              bucket:'Support'  }
+    ]
+  },
+  {
+    blockId: 4,
+    items: [
+      { id:'Q53', text:'I create urgency in opportunities.',                    bucket:'Hunter'   },
+      { id:'Q54', text:'I deepen client partnerships over time.',               bucket:'Farmer'   },
+      { id:'Q55', text:'I solve complex problems through analysis.',            bucket:'Analyzer' },
+      { id:'Q56', text:'I maintain execution reliability.',                     bucket:'Support'  }
+    ]
+  }
+];
+
+const pages = [
+  { likertIds: ['Q1','Q2','Q3','Q4','Q5','Q6','Q7','Q8','Q9','Q10'], forced: [] },
+  { likertIds: ['Q11','Q12','Q13','Q14','Q15','Q16','Q17','Q18','Q19','Q20'], forced: [] },
+  { likertIds: ['Q21','Q22','Q23','Q24','Q25','Q26','Q27','Q28','Q29','Q30'], forced: [] },
+  { likertIds: ['Q31','Q32','Q33','Q34','Q35','Q36','Q37','Q38','Q39','Q40'], forced: [] },
+  { likertIds: [], forced: ['Q41','Q42','Q43','Q44','Q45','Q46','Q47','Q48','Q49','Q50','Q51','Q52','Q53','Q54','Q55','Q56'] }
+];
+
+let currentPage = 0;
+const savedAnswers = {};
+
+/* ===========================
+   3. RENDER CURRENT PAGE
+   =========================== */
+
+function saveCurrentPageAnswers() {
+  const page = pages[currentPage];
+  page.likertIds.forEach(id => {
+    const checked = document.querySelector(`input[name="${id}"]:checked`);
+    if (checked) savedAnswers[id] = checked.value;
+  });
+  if (page.forced.length > 0) {
+    forcedBlocks.forEach(block => {
+      block.items.forEach(item => {
+        const sel = document.querySelector(`select[name="${item.id}"]`);
+        if (sel && sel.value) savedAnswers[item.id] = sel.value;
+      });
+    });
+  }
+}
+
+function renderCurrentPage() {
+  const container = document.getElementById('questionsContainer');
+  container.innerHTML = '';
+  const page = pages[currentPage];
+
+  const labels = ['Strongly Disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly Agree'];
+
+  page.likertIds.forEach(id => {
+    const q = likertQuestions.find(x => x.id === id);
+    if (!q) return;
+    const div = document.createElement('div');
+    div.className = 'question-block';
+
+    let optionsHtml = '';
+    for (let val = 1; val <= 5; val++) {
+      optionsHtml += `
+        <div class="likert-option">
+          <input type="radio" id="${q.id}_${val}" name="${q.id}" value="${val}">
+          <label for="${q.id}_${val}">${labels[val-1]}</label>
+        </div>
+      `;
+    }
+
+    div.innerHTML = `
+      <div class="question-text"><strong>${q.id}.</strong> ${q.text}</div>
+      <div class="likert-scale">${optionsHtml}</div>
+    `;
+    container.appendChild(div);
+
+    const prevVal = savedAnswers[id];
+    if (prevVal) {
+      const input = container.querySelector(`input[name="${q.id}"][value="${prevVal}"]`);
+      if (input) input.checked = true;
+    }
+  });
+
+  if (page.forced.length > 0) {
+    for (let block of forcedBlocks) {
+      const blockDiv = document.createElement('div');
+      blockDiv.className = 'question-block';
+      blockDiv.innerHTML = `<div class="ranking-note">Rank 1 = Most like me, 4 = Least like me. Please select a rank for every statement.</div>`;
+      block.items.forEach(item => {
+        const qDiv = document.createElement('div');
+        qDiv.style.marginTop = '6px';
+        qDiv.innerHTML = `
+          <div class="question-text">${item.id}. ${item.text}</div>
+          <select name="${item.id}">
+            <option value="">Rank…</option>
+            <option value="1">1 (Most like me)</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4 (Least like me)</option>
+          </select>
+        `;
+        blockDiv.appendChild(qDiv);
+
+        const prevRank = savedAnswers[item.id];
+        if (prevRank) {
+          const select = blockDiv.querySelector(`select[name="${item.id}"]`);
+          if (select) select.value = prevRank;
+        }
+      });
+      container.appendChild(blockDiv);
+    }
+  }
+
+  document.getElementById('prevBtn').style.display = currentPage === 0 ? 'none' : 'inline-block';
+  document.getElementById('nextBtn').style.display = currentPage === pages.length - 1 ? 'none' : 'inline-block';
+  document.getElementById('submitBtn').style.display = currentPage === pages.length - 1 ? 'inline-block' : 'none';
+  document.getElementById('error').textContent = '';
+
+  const bar = document.getElementById('progressBar');
+  if (bar) bar.style.width = (((currentPage + 1) / pages.length) * 100) + '%';
+}
+
+/* ===========================
+   4. VALIDATION
+   =========================== */
+
+function validateCurrentPage() {
+  const page = pages[currentPage];
+
+  for (let id of page.likertIds) {
+    const checked = document.querySelector(`input[name="${id}"]:checked`);
+    const saved = savedAnswers[id];
+    if (!checked && !saved) {
+      return 'Please answer all questions on this page before continuing.';
+    }
+  }
+
+  if (page.forced.length > 0) {
+    for (let block of forcedBlocks) {
+      for (let item of block.items) {
+        const sel = document.querySelector(`select[name="${item.id}"]`);
+        const saved = savedAnswers[item.id];
+        if ((!sel || !sel.value) && !saved) {
+          return 'Please complete all rankings before submitting.';
+        }
+      }
+    }
+  }
+
+  return '';
+}
+
+/* ===========================
+   5. SCORING
+   =========================== */
+
+function scoreLikert(formData) {
+  const traitScores = {};
+  const allRaw = [];
+
+  likertQuestions.forEach(q => {
+    const raw = parseInt(formData.get(q.id), 10);
+    if (isNaN(raw)) return;
+    allRaw.push(raw);
+    const score = q.reverse ? (6 - raw) : raw;
+    traitScores[q.trait] = (traitScores[q.trait] || 0) + score;
+  });
+
+  const traitNorm = {};
+  Object.keys(traitScores).forEach(tr => {
+    traitNorm[tr] = Math.round((traitScores[tr] / traitMax[tr]) * 100);
+  });
+
+  return { traitScores, traitNorm, allRaw };
+}
+
+function scoreForced(formData) {
+  const forcedPoints = { Hunter:0, Farmer:0, Analyzer:0, Support:0 };
+
+  for (let block of forcedBlocks) {
+    for (let item of block.items) {
+      const rankVal = formData.get(item.id);
+      if (!rankVal) throw new Error('Please complete all rankings.');
+      const rank = parseInt(rankVal, 10);
+      const pts = 5 - rank;
+      forcedPoints[item.bucket] += pts;
+    }
+  }
+
+  const forcedNorm = {};
+  Object.keys(forcedPoints).forEach(bucket => {
+    forcedNorm[bucket] = Math.round((forcedPoints[bucket] / 16) * 100);
+  });
+
+  return { forcedPoints, forcedNorm };
+}
+
+function computeBuckets(traitNorm, forcedNorm) {
+  const Drive         = traitNorm.Drive         || 0;
+  const Competitive   = traitNorm.Competitive   || 0;
+  const Resilience    = traitNorm.Resilience    || 0;
+  const Relationship  = traitNorm.Relationship  || 0;
+  const Analytical    = traitNorm.Analytical    || 0;
+  const Coachability  = traitNorm.Coachability  || 0;
+  const Conscientious = traitNorm.Conscientious || 0;
+
+  const HunterIndex  = (Drive * 0.25) + (Competitive * 0.25) + (Resilience * 0.20) + (Conscientious * 0.10) + ((forcedNorm.Hunter || 0) * 0.20);
+  const FarmerIndex  = (Relationship * 0.30) + (Conscientious * 0.20) + (Resilience * 0.15) + (Coachability * 0.10) + ((forcedNorm.Farmer || 0) * 0.25);
+  const AnalyzerIndex= (Analytical * 0.35) + (Conscientious * 0.20) + (Resilience * 0.10) + (Coachability * 0.10) + ((forcedNorm.Analyzer || 0) * 0.25);
+  const SupportIndex = (Conscientious * 0.35) + (Relationship * 0.20) + (Analytical * 0.15) + (Resilience * 0.05) + ((forcedNorm.Support || 0) * 0.25);
+  const EnablerIndex = (Relationship * 0.30) + (Coachability * 0.20) + (Analytical * 0.15) + (Drive * 0.10) + ((forcedNorm.Farmer || 0) * 0.10) + ((forcedNorm.Analyzer || 0) * 0.15);
+
+  const buckets = {
+    Hunter:   Math.round(HunterIndex),
+    Farmer:   Math.round(FarmerIndex),
+    Analyzer: Math.round(AnalyzerIndex),
+    Support:  Math.round(SupportIndex),
+    Enabler:  Math.round(EnablerIndex)
+  };
+
+  const sorted = Object.entries(buckets).sort((a,b) => b[1] - a[1]);
+  return { buckets, primary: sorted[0], secondary: sorted[1], sorted };
+}
+
+function computeIMandConsistency(allRaw) {
+  const n = allRaw.length;
+  const mean = allRaw.reduce((a,b) => a+b, 0) / n;
+  const variance = allRaw.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / n;
+  const sd = Math.sqrt(variance);
+  const share5 = allRaw.filter(v => v === 5).length / n;
+
+  let imFlag = '';
+  if (share5 > 0.8 || sd < 0.5) {
+    imFlag = 'Profile reflects elevated self-consistency. Interpret results alongside interview validation.';
+  }
+  const consistencyIndex = Math.round((1 - Math.min(sd / 2, 1)) * 100);
+
+  return { imFlag, consistencyIndex, sd, share5 };
+}
+
+function generateCertId() {
+  const now = new Date();
+  const datePart = now.getFullYear().toString() +
+    String(now.getMonth()+1).padStart(2,'0') +
+    String(now.getDate()).padStart(2,'0');
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let rand = '';
+  for (let i = 0; i < 4; i++) rand += chars[Math.floor(Math.random() * chars.length)];
+  return 'SPFA-' + datePart + '-' + rand;
+}
+
+/* ===========================
+   6. SUBMIT
+   =========================== */
+
+async function handleSubmit() {
+  saveCurrentPageAnswers();
+  clearInterval(timerInterval);
+
+  const errorDiv = document.getElementById('error');
+  const msg = validateCurrentPage();
+  if (msg) { errorDiv.textContent = msg; return; }
+  errorDiv.textContent = '';
+
+  const formData = new FormData();
+  Object.entries(savedAnswers).forEach(([k,v]) => formData.set(k, v));
+
+  let likertResult, forcedResult;
+  try {
+    likertResult = scoreLikert(formData);
+    forcedResult = scoreForced(formData);
+  } catch(e) {
+    errorDiv.textContent = e.message;
+    return;
+  }
+
+  const elapsedMinutes = (performance.now() - startTime) / 60000;
+  const bucketsInfo    = computeBuckets(likertResult.traitNorm, forcedResult.forcedNorm);
+  const imInfo         = computeIMandConsistency(likertResult.allRaw);
+  const certId         = generateCertId();
+
+  // Name: URL param takes precedence, fallback to input field
+  const candidateName  = CANDIDATE_NAME || document.getElementById('name').value.trim() || 'Candidate';
+  const candidateEmail = CANDIDATE_EMAIL || document.getElementById('email').value.trim() || '';
+
+  const payload = {
+    certId:          certId,
+    candidateName:   candidateName,
+    candidateEmail:  candidateEmail,
+    senderEmail:     SENDER_EMAIL,
+    company:         COMPANY,
+    role:            ROLE,
+    elapsedMinutes:  elapsedMinutes,
+    traitScores:     likertResult.traitNorm,
+    bucketScores:    bucketsInfo.buckets,
+    primaryBucket:   bucketsInfo.primary[0],
+    primaryScore:    bucketsInfo.primary[1],
+    secondaryBucket: bucketsInfo.secondary[0],
+    secondaryScore:  bucketsInfo.secondary[1],
+    imFlag:          imInfo.imFlag,
+    consistencyIndex: imInfo.consistencyIndex
+  };
+
+  // Hide form, show processing
+  document.getElementById('formSection').style.display = 'none';
+  document.getElementById('timerBar').style.display = 'none';
+  document.getElementById('processingOverlay').classList.add('active');
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  } catch(err) {
+    // Even if the network call fails, show thank-you to the candidate.
+    // The Apps Script side will have a retry mechanism in future.
+    console.error('Submission error:', err);
+  }
+
+  // Always show thank-you — candidate experience should not break
+  document.getElementById('processingOverlay').classList.remove('active');
+  showThankYou(candidateName, certId);
+}
+
+function showThankYou(name, certId) {
+  const company = COMPANY || 'the team';
+
+  document.getElementById('tyName').textContent = name.split(' ')[0] || name;
+  document.getElementById('tyBody').textContent =
+    'Your assessment has been submitted successfully. ' +
+    company + ' will be in touch with you about the next steps.';
+  document.getElementById('tyCertRef').textContent = 'Reference: ' + certId;
+  document.getElementById('thankYouScreen').classList.add('active');
+}
+
+/* ===========================
+   7. NAV
+   =========================== */
+
+function handleNext() {
+  const errorDiv = document.getElementById('error');
+  const msg = validateCurrentPage();
+  if (msg) { errorDiv.textContent = msg; return; }
+  saveCurrentPageAnswers();
+  if (currentPage < pages.length - 1) {
+    currentPage++;
+    renderCurrentPage();
+    window.scrollTo(0, 0);
+  }
+}
+
+function handlePrev() {
+  saveCurrentPageAnswers();
+  if (currentPage > 0) {
+    currentPage--;
+    renderCurrentPage();
+    window.scrollTo(0, 0);
+  }
+}
+
+/* ===========================
+   8. CONSENT
+   =========================== */
+
+function handleConsent(agreed) {
+  if (agreed && document.querySelector('input[name="consent"]:checked')) {
+    document.getElementById('consentOverlay').style.display = 'none';
+    sessionStorage.setItem('spfaConsent', 'granted');
+  } else {
+    alert('You must agree to proceed with the assessment.');
+  }
+}
+
+/* ===========================
+   9. INIT
+   =========================== */
+
+window.addEventListener('load', () => {
+  // Pre-fill name from URL param
+  if (CANDIDATE_NAME) {
+    const nameInput = document.getElementById('name');
+    nameInput.value = CANDIDATE_NAME;
+    nameInput.readOnly = true;
+    nameInput.style.background = '#f3f4f6';
+    nameInput.style.color = '#6b7280';
+  }
+  if (CANDIDATE_EMAIL) {
+    const emailInput = document.getElementById('email');
+    emailInput.value = CANDIDATE_EMAIL;
+    emailInput.readOnly = true;
+    emailInput.style.background = '#f3f4f6';
+    emailInput.style.color = '#6b7280';
+  }
+
+  renderCurrentPage();
+  startTimer();
+
+  document.getElementById('prevBtn').addEventListener('click', handlePrev);
+  document.getElementById('nextBtn').addEventListener('click', handleNext);
+  document.getElementById('submitBtn').addEventListener('click', handleSubmit);
+
+  // Consent
+  const consentRadio = document.getElementById('consentRadio');
+  if (consentRadio) {
+    consentRadio.addEventListener('change', () => {
+      document.getElementById('agreeBtn').disabled = !consentRadio.checked;
+    });
+  }
+
+  // Show consent overlay
+  document.getElementById('consentOverlay').style.display = 'flex';
+});
+</script>
+</body>
+</html>
